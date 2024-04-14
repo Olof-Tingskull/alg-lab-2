@@ -111,11 +111,6 @@ fn explore_options_recursive(
 ) -> Vec<Vec<usize>> {
     let options = get_options(roles_potential_actors, scenes_roles, roles_assigned_actors);
 
-    for option in &options {
-        //println!("Role {} can be played by actor {}", option.role, option.actor);
-    }  
-    //panic!("");
-
     // Initialize a vector to store all valid assignments
     let mut all_valid_assignments = Vec::new();
 
