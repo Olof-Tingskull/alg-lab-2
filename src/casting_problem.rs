@@ -1,6 +1,4 @@
-use regex::Regex;
 use std::collections::HashSet;
-
 
 fn has_common_element<I, J>(iter1: I, iter2: J) -> bool
 where
@@ -10,7 +8,6 @@ where
     let set: HashSet<usize> = iter1.into_iter().collect();
     iter2.into_iter().any(|item| set.contains(&item))
 }
-
 
 fn actor_plays_roles<'a>(
     roles_assigned_actors: &'a Vec<Option<usize>>,
@@ -29,7 +26,6 @@ fn actor_plays_roles<'a>(
         })
 }
 
-
 fn role_in_scenes<'a>(
     scenes_roles: &'a Vec<Vec<usize>>,
     role: usize,
@@ -45,7 +41,6 @@ fn role_in_scenes<'a>(
         })
 }
 
-
 fn actor_in_scenes<'a>(
     scenes_roles: &'a Vec<Vec<usize>>,
     roles_assigned_actors: &'a Vec<Option<usize>>,
@@ -60,13 +55,11 @@ fn actor_in_scenes<'a>(
         })
 }
 
-
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 struct RoleActor {
     role: usize,
     actor: usize,
 }
-
 
 fn get_actors_for_role<'a>(
     roles_potential_actors: &'a Vec<Vec<usize>>,
@@ -96,7 +89,6 @@ fn get_actors_for_role<'a>(
         })
 }
 
-
 fn get_options<'a>(
     roles_potential_actors: &'a Vec<Vec<usize>>,
     scenes_roles: &'a Vec<Vec<usize>>,
@@ -123,7 +115,6 @@ fn get_options<'a>(
         .flatten()
 }
 
-
 fn explore_options_recursive(
     roles_potential_actors: &Vec<Vec<usize>>,
     scenes_roles: &Vec<Vec<usize>>,
@@ -133,10 +124,8 @@ fn explore_options_recursive(
     let mut all_valid_assignments = Vec::new();
 
     for option in options {
-
         let mut new_roles_assigned_actors = roles_assigned_actors.clone();
         new_roles_assigned_actors[option.role] = Some(option.actor);
-
 
         if new_roles_assigned_actors.iter().all(|a| a.is_some()) {
             all_valid_assignments.push(
@@ -160,11 +149,9 @@ fn explore_options_recursive(
 }
 
 fn parse_input(input: &str) -> (Vec<Vec<usize>>, Vec<Vec<usize>>) {
-    let re = Regex::new(r"\d+").unwrap();
-
-    let mut numbers: Vec<_> = re
-        .find_iter(input)
-        .filter_map(|mat| mat.as_str().parse::<usize>().ok())
+    let mut numbers: Vec<usize> = input
+        .split(|c: char| !c.is_digit(10))
+        .filter_map(|s| s.parse::<usize>().ok())
         .collect();
 
     let n = numbers.remove(0);
@@ -194,14 +181,12 @@ fn parse_input(input: &str) -> (Vec<Vec<usize>>, Vec<Vec<usize>>) {
     );
 }
 
-
 fn apply_actor_filter(solution: &Vec<usize>, scenes_roles: &Vec<Vec<usize>>) -> bool {
     let roles_assigned_actors = solution.iter().map(|&a| Some(a)).collect::<Vec<_>>();
     let scenes_1 = actor_in_scenes(scenes_roles, &roles_assigned_actors, 0);
     let scenes_2 = actor_in_scenes(scenes_roles, &roles_assigned_actors, 1);
     return !has_common_element(scenes_1, scenes_2);
 }
-
 
 pub fn run(input: &str) {
     let (roles_potential_actors, scenes_roles) = parse_input(input);
@@ -239,7 +224,12 @@ pub fn reduce_to_graph_coloring(input: &str) {
     let (roles_potential_actors, scenes_roles) = parse_input(input);
 
     let n_vertices = roles_potential_actors.len();
-    let n_colors = roles_potential_actors.iter().flat_map(|a| a.iter()).max().unwrap() + 1;
+    let n_colors = roles_potential_actors
+        .iter()
+        .flat_map(|a| a.iter())
+        .max()
+        .unwrap()
+        + 1;
     let mut edges: Vec<(usize, usize)> = vec![];
 
     for scene in scenes_roles {
