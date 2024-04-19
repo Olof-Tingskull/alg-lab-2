@@ -4,8 +4,8 @@
 
 ### 1 Write, in some notation of your choice, a solution to the yes-instance of the casting problem in the example above
 - Role 1 is played by actor 1
-- Role 2 is played by actor 3
-- Role 3 is played by actor 1
+- Role 2 is played by actor 2
+- Role 3 is played by actor 3
 - Role 4 is played by actor 2
 - Role 5 is played by actor 2
 - Role 6 is played by actor 4
@@ -94,6 +94,8 @@ We only need to add one more actor for role three. That new actor don't have to 
     3 - 1 3 4
     2 - 3 5
     3 - 2 3 5
+
+    1 3 4 2 1
 
 ### 4 Which is the smallest possible production that satisfies all input constraints for the casting problem and is possible to stage (i.e., the smallest possible YES-instance)? Specify the input for this production.
 

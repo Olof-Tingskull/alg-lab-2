@@ -1,10 +1,25 @@
 use regex::Regex;
+use std::collections::HashSet;
 
-fn actor_plays_roles(roles_assigned_actors: &Vec<Option<usize>>, actor: usize) -> Vec<usize> {
+
+fn has_common_element<I, J>(iter1: I, iter2: J) -> bool
+where
+    I: IntoIterator<Item = usize>,
+    J: IntoIterator<Item = usize>,
+{
+    let set: HashSet<usize> = iter1.into_iter().collect();
+    iter2.into_iter().any(|item| set.contains(&item))
+}
+
+
+fn actor_plays_roles<'a>(
+    roles_assigned_actors: &'a Vec<Option<usize>>,
+    actor: usize,
+) -> impl Iterator<Item = usize> + 'a {
     roles_assigned_actors
         .iter()
         .enumerate()
-        .filter_map(|(role, &assigned_actor)| {
+        .filter_map(move |(role, &assigned_actor)| {
             if let Some(assigned_actor) = assigned_actor {
                 if assigned_actor == actor {
                     return Some(role);
@@ -12,50 +27,53 @@ fn actor_plays_roles(roles_assigned_actors: &Vec<Option<usize>>, actor: usize) -
             }
             None
         })
-        .collect()
 }
 
-fn role_in_scenes(scenes_roles: &Vec<Vec<usize>>, role: usize) -> Vec<usize> {
+
+fn role_in_scenes<'a>(
+    scenes_roles: &'a Vec<Vec<usize>>,
+    role: usize,
+) -> impl Iterator<Item = usize> + 'a {
     scenes_roles
         .iter()
         .enumerate()
-        .filter_map(|(scene, roles)| {
+        .filter_map(move |(scene, roles)| {
             if roles.contains(&role) {
                 return Some(scene);
             }
             None
         })
-        .collect()
 }
 
-fn actor_in_scenes(
-    scenes_roles: &Vec<Vec<usize>>,
-    roles_assigned_actors: &Vec<Option<usize>>,
+
+fn actor_in_scenes<'a>(
+    scenes_roles: &'a Vec<Vec<usize>>,
+    roles_assigned_actors: &'a Vec<Option<usize>>,
     actor: usize,
-) -> Vec<usize> {
-    let roles = actor_plays_roles(roles_assigned_actors, actor);
-    roles
-        .iter()
-        .flat_map(|&role| {
+) -> impl Iterator<Item = usize> + 'a {
+    actor_plays_roles(roles_assigned_actors, actor)
+        .into_iter()
+        .flat_map(|role| {
             let role_scenes = role_in_scenes(scenes_roles, role);
 
             role_scenes
         })
-        .collect()
 }
 
-#[derive(Debug)]
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 struct RoleActor {
     role: usize,
     actor: usize,
 }
 
-fn get_actors_for_role(
-    roles_potential_actors: &Vec<Vec<usize>>,
-    scenes_roles: &Vec<Vec<usize>>,
-    roles_assigned_actors: &Vec<Option<usize>>,
+
+fn get_actors_for_role<'a>(
+    roles_potential_actors: &'a Vec<Vec<usize>>,
+    scenes_roles: &'a Vec<Vec<usize>>,
+    roles_assigned_actors: &'a Vec<Option<usize>>,
     role: usize,
-) -> Vec<usize> {
+) -> impl Iterator<Item = usize> + 'a {
     if let Some(actor) = roles_assigned_actors[role] {
         panic!(
             "Role {} is already assigned to actor {}",
@@ -66,43 +84,45 @@ fn get_actors_for_role(
 
     roles_potential_actors[role]
         .iter()
-        .filter_map(|&actor| {
+        .filter_map(move |&actor| {
             let role_scenes = role_in_scenes(scenes_roles, role);
             let actor_scenes = actor_in_scenes(scenes_roles, roles_assigned_actors, actor);
 
-            if role_scenes.iter().any(|scene| actor_scenes.contains(scene)) {
+            if has_common_element(role_scenes, actor_scenes) {
                 return None;
+            } else {
+                return Some(actor);
             }
-
-            Some(actor)
         })
-        .collect()
 }
 
-fn get_options(
-    roles_potential_actors: &Vec<Vec<usize>>,
-    scenes_roles: &Vec<Vec<usize>>,
-    roles_assigned_actors: &Vec<Option<usize>>,
-) -> Vec<RoleActor> {
+
+fn get_options<'a>(
+    roles_potential_actors: &'a Vec<Vec<usize>>,
+    scenes_roles: &'a Vec<Vec<usize>>,
+    roles_assigned_actors: &'a Vec<Option<usize>>,
+) -> impl Iterator<Item = RoleActor> + 'a {
     roles_assigned_actors
         .iter()
         .enumerate()
-        .filter(|(_role, &actor)| actor.is_none())
-        .flat_map(|(role, _actor)| {
-            let m = get_actors_for_role(
-                roles_potential_actors,
-                scenes_roles,
-                &roles_assigned_actors,
-                role,
-            )
-            .iter()
-            .map(|&actor| RoleActor { role, actor })
-            .collect::<Vec<_>>();
-
-            m
+        .filter_map(|(role, &actor)| {
+            if actor.is_none() {
+                return Some(
+                    get_actors_for_role(
+                        roles_potential_actors,
+                        scenes_roles,
+                        roles_assigned_actors,
+                        role,
+                    )
+                    .map(move |actor| RoleActor { role, actor }),
+                );
+            } else {
+                return None;
+            }
         })
-        .collect()
+        .flatten()
 }
+
 
 fn explore_options_recursive(
     roles_potential_actors: &Vec<Vec<usize>>,
@@ -110,25 +130,15 @@ fn explore_options_recursive(
     roles_assigned_actors: &Vec<Option<usize>>,
 ) -> Vec<Vec<usize>> {
     let options = get_options(roles_potential_actors, scenes_roles, roles_assigned_actors);
-
-    // Initialize a vector to store all valid assignments
     let mut all_valid_assignments = Vec::new();
 
-    // If there are no options, return the empty list of assignments (base case of recursion)
-    if options.is_empty() {
-        return all_valid_assignments;
-    }
-
     for option in options {
+
         let mut new_roles_assigned_actors = roles_assigned_actors.clone();
         new_roles_assigned_actors[option.role] = Some(option.actor);
 
-        // Check if all roles have been assigned an actor
-        if new_roles_assigned_actors
-            .iter()
-            .all(|actor| actor.is_some())
-        {
-            // Collect this valid assignment
+
+        if new_roles_assigned_actors.iter().all(|a| a.is_some()) {
             all_valid_assignments.push(
                 new_roles_assigned_actors
                     .iter()
@@ -136,13 +146,12 @@ fn explore_options_recursive(
                     .collect(),
             );
         } else {
-            // Otherwise, continue exploring recursively
             let mut results_from_recursion = explore_options_recursive(
                 roles_potential_actors,
                 scenes_roles,
                 &new_roles_assigned_actors,
             );
-            // Append all results from further recursion into the main list
+
             all_valid_assignments.append(&mut results_from_recursion);
         }
     }
@@ -185,23 +194,37 @@ fn parse_input(input: &str) -> (Vec<Vec<usize>>, Vec<Vec<usize>>) {
     );
 }
 
+
+fn apply_actor_filter(solution: &Vec<usize>, scenes_roles: &Vec<Vec<usize>>) -> bool {
+    let roles_assigned_actors = solution.iter().map(|&a| Some(a)).collect::<Vec<_>>();
+    let scenes_1 = actor_in_scenes(scenes_roles, &roles_assigned_actors, 0);
+    let scenes_2 = actor_in_scenes(scenes_roles, &roles_assigned_actors, 1);
+    return !has_common_element(scenes_1, scenes_2);
+}
+
+
 pub fn run(input: &str) {
     let (roles_potential_actors, scenes_roles) = parse_input(input);
 
-    
-    let all_solutions = explore_options_recursive(
+    let roles_assigned_actors = vec![None; roles_potential_actors.len()];
+
+    let all_solution = explore_options_recursive(
         &roles_potential_actors,
         &scenes_roles,
-        &vec![None; roles_potential_actors.len()],
+        &roles_assigned_actors,
     );
 
+    let solutions = all_solution
+        .iter()
+        .filter(|solution| apply_actor_filter(solution, &scenes_roles))
+        .collect::<Vec<_>>();
 
-    if all_solutions.is_empty() {
+    if solutions.is_empty() {
         println!("No solution found");
     } else {
-        println!("Found {} solutions", all_solutions.len());
+        println!("Found {} solutions", solutions.len());
 
-        all_solutions
+        solutions
             .first()
             .unwrap()
             .iter()
@@ -209,5 +232,29 @@ pub fn run(input: &str) {
             .for_each(|(role, actor)| {
                 println!("Role {} is played by actor {}", role + 1, actor + 1);
             });
+    }
+}
+
+pub fn reduce_to_graph_coloring(input: &str) {
+    let (roles_potential_actors, scenes_roles) = parse_input(input);
+
+    let n_vertices = roles_potential_actors.len();
+    let n_colors = roles_potential_actors.iter().flat_map(|a| a.iter()).max().unwrap() + 1;
+    let mut edges: Vec<(usize, usize)> = vec![];
+
+    for scene in scenes_roles {
+        for i in 0..scene.len() {
+            for j in i + 1..scene.len() {
+                edges.push((scene[i], scene[j]));
+            }
+        }
+    }
+
+    println!("{}", n_vertices);
+    println!("{}", edges.len());
+    println!("{}", n_colors);
+
+    for (from, to) in edges {
+        println!("{} {}", from + 1, to + 1);
     }
 }
