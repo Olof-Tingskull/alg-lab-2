@@ -193,6 +193,9 @@ pub fn run(input: &str) {
 
     let roles_assigned_actors = vec![None; roles_potential_actors.len()];
 
+    println!("{:?}", roles_potential_actors);
+    println!("{:?}", scenes_roles);
+
     let all_solution = explore_options_recursive(
         &roles_potential_actors,
         &scenes_roles,
